@@ -1,224 +1,739 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webová Vědecká Kalkulačka</title>
-    <style>
-        :root {
-            --bg-color: #0f172a;
-            --calc-bg: #1e293b;
-            --display-bg: #334155;
-            --btn-num: #475569;
-            --btn-op: #f97316;
-            --btn-fn: #38bdf8;
-            --text-color: #f8fafc;
-        }
+<meta charset="UTF-8">
+<title>Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.2/math.min.js"></script>
+<style>
+  :root{
+    --bg:#f5f5f7;
+    --card:#ffffff;
+    --ink:#1d1d1f;
+    --ink-soft:#86868b;
+    --line: rgba(0,0,0,0.08);
+    --blue:#0071e3;
+    --blue-dim:#0058b0;
+    --red:#ff3b30;
+    --key:#f5f5f7;
+    --key-hover:#ebebee;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    min-height:100vh;
+    font-family:var(--sans);
+    color:var(--ink);
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:40px 16px 60px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .device{
+    width:100%;
+    max-width:720px;
+    background:var(--card);
+    border-radius:20px;
+    border:1px solid var(--line);
+    box-shadow:0 20px 50px -25px rgba(0,0,0,0.18);
+    padding:28px;
+  }
+  .brandrow{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    padding:0 2px 18px;
+    margin-bottom:18px;
+    border-bottom:1px solid var(--line);
+  }
+  .brand{
+    font-size:19px;
+    font-weight:600;
+    letter-spacing:-0.01em;
+    color:var(--ink);
+  }
+  .brand span{color:var(--ink-soft); font-weight:400;}
+  .tagline{font-size:12px;color:var(--ink-soft);}
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-        }
+  /* Display */
+  .display{
+    background:var(--key);
+    color:var(--ink);
+    border-radius:16px;
+    padding:20px 22px;
+    margin-bottom:18px;
+    position:relative;
+    min-height:100px;
+  }
+  .display .expr{
+    font-size:13px;
+    color:var(--ink-soft);
+    min-height:16px;
+    word-break:break-all;
+  }
+  .display .result{
+    font-size:34px;
+    font-weight:600;
+    letter-spacing:-0.01em;
+    margin-top:6px;
+    word-break:break-all;
+    line-height:1.15;
+    font-variant-numeric:tabular-nums;
+  }
+  .display .result.err{color:var(--red); font-size:17px; font-weight:500;}
+  .display .hint{
+    position:absolute;
+    top:16px; right:18px;
+    font-size:11px;
+    font-weight:500;
+    color:var(--ink-soft);
+  }
 
-        .calculator {
-            background-color: var(--calc-bg);
-            padding: 24px;
-            border-radius: 16px;
-            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.5);
-            width: 100%;
-            max-width: 400px;
-        }
+  /* Mode dial */
+  .dial{
+    display:flex;
+    gap:2px;
+    background:var(--key);
+    border-radius:12px;
+    padding:3px;
+    margin-bottom:18px;
+    overflow-x:auto;
+  }
+  .dial button{
+    flex:1 0 auto;
+    white-space:nowrap;
+    background:transparent;
+    border:none;
+    color:var(--ink-soft);
+    font-family:var(--sans);
+    font-size:13px;
+    font-weight:500;
+    padding:9px 14px;
+    border-radius:9px;
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .dial button:hover{color:var(--ink);}
+  .dial button.active{
+    background:var(--card);
+    color:var(--ink);
+    font-weight:600;
+    box-shadow:0 1px 4px rgba(0,0,0,0.12);
+  }
 
-        .display-container {
-            background-color: var(--display-bg);
-            padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            text-align: right;
-        }
+  .pane{display:none;}
+  .pane.active{display:block; animation:fade .18s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(2px);} to{opacity:1;}}
 
-        .history {
-            font-size: 14px;
-            color: #94a3b8;
-            min-height: 20px;
-            overflow-x: auto;
-            white-space: nowrap;
-        }
+  label{
+    display:block;
+    font-size:12px;
+    font-weight:500;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+    margin-top:16px;
+  }
+  label:first-child{margin-top:0;}
+  input[type=text], input[type=number], select, textarea{
+    width:100%;
+    background:var(--key);
+    border:1px solid transparent;
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:15px;
+    padding:11px 13px;
+    border-radius:10px;
+    outline:none;
+    transition:border-color .15s;
+  }
+  input:focus, select:focus, textarea:focus{border-color:var(--blue); background:var(--card); box-shadow:0 0 0 3px rgba(0,113,227,0.12);}
+  .row{display:flex; gap:10px;}
+  .row > *{flex:1;}
+  textarea{resize:vertical; min-height:56px; font-family:var(--sans);}
 
-        .current {
-            font-size: 32px;
-            font-weight: bold;
-            overflow-x: auto;
-            white-space: nowrap;
-            margin-top: 4px;
-        }
+  .btnrow{display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;}
+  .go{
+    background:var(--blue);
+    color:#ffffff;
+    border:none;
+    font-family:var(--sans);
+    font-weight:600;
+    font-size:14px;
+    padding:11px 20px;
+    border-radius:10px;
+    cursor:pointer;
+    transition:background .15s;
+  }
+  .go:hover{background:var(--blue-dim);}
+  .go.secondary{
+    background:var(--key);
+    color:var(--ink);
+    border:1px solid var(--line);
+  }
 
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-        }
+  /* keypad */
+  .keys{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:8px;
+    margin-top:16px;
+  }
+  .key{
+    background:var(--key);
+    border:none;
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:16px;
+    font-weight:500;
+    padding:14px 0;
+    border-radius:10px;
+    cursor:pointer;
+    text-align:center;
+    transition:background .1s;
+  }
+  .key:hover{background:var(--key-hover);}
+  .key.op{color:var(--blue);}
+  .key.fn{color:var(--ink-soft); font-size:13px;}
+  .key.wide{grid-column:span 2;}
+  .key.clear{color:var(--red);}
+  .key.eq{background:var(--blue); color:#ffffff; font-weight:600;}
+  .key.eq:hover{background:var(--blue-dim);}
 
-        button {
-            border: none;
-            padding: 16px;
-            font-size: 18px;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            color: var(--text-color);
-            transition: opacity 0.1s ease;
-        }
-
-        button:active {
-            opacity: 0.7;
-        }
-
-        .num { background-color: var(--btn-num); }
-        .op { background-color: var(--btn-op); }
-        .fn { background-color: var(--btn-fn); color: #0f172a; }
-        .clear { background-color: #ef4444; }
-    </style>
+  .note{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:12px;
+    line-height:1.5;
+  }
+  .footline{
+    text-align:center;
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:20px;
+  }
+  .steps{
+    font-size:13px;
+    color:var(--ink);
+    background:var(--key);
+    border:none;
+    border-radius:12px;
+    padding:14px;
+    margin-top:14px;
+    white-space:pre-wrap;
+    line-height:1.6;
+    font-variant-numeric:tabular-nums;
+  }
+  .hist{max-height:120px; overflow-y:auto; margin-top:8px;}
+  .hist div{font-size:12px; color:var(--ink-soft); padding:5px 2px; border-bottom:1px solid var(--line); cursor:pointer;}
+  .hist div:hover{color:var(--blue);}
+  ::-webkit-scrollbar{height:6px; width:6px;}
+  ::-webkit-scrollbar-thumb{background:#d2d2d7; border-radius:4px;}
+</style>
 </head>
 <body>
+<div class="device">
+  <div class="brandrow">
+    <div class="brand">Calculator</div>
+    <div class="tagline">Arithmetic, algebra, calculus, matrices & statistics</div>
+  </div>
 
-<div class="calculator">
-    <div class="display-container">
-        <div id="history" class="history"></div>
-        <div id="display" class="current">0</div>
+  <div class="display">
+    <div class="hint" id="modeHint">Basic</div>
+    <div class="expr" id="exprLine">&nbsp;</div>
+    <div class="result" id="resultLine">0</div>
+  </div>
+
+  <div class="dial" id="dial">
+    <button data-pane="basic" class="active">Basic</button>
+    <button data-pane="sci">Scientific</button>
+    <button data-pane="equation">Equations</button>
+    <button data-pane="calculus">Calculus</button>
+    <button data-pane="matrix">Matrix</button>
+    <button data-pane="stats">Statistics</button>
+    <button data-pane="convert">Convert</button>
+    <button data-pane="base">Base / №</button>
+  </div>
+
+  <!-- BASIC -->
+  <div class="pane active" id="pane-basic">
+    <input type="text" id="basicInput" placeholder="Type an expression, e.g. (3+4)*sin(pi/4)^2" autocomplete="off">
+    <div class="keys">
+      <button class="key clear" data-act="clear">AC</button>
+      <button class="key" data-act="back">⌫</button>
+      <button class="key op" data-ins="(">(</button>
+      <button class="key op" data-ins=")">)</button>
+      <button class="key op" data-ins="/">÷</button>
+
+      <button class="key" data-ins="7">7</button>
+      <button class="key" data-ins="8">8</button>
+      <button class="key" data-ins="9">9</button>
+      <button class="key op" data-ins="*">×</button>
+      <button class="key fn" data-ins="^">xʸ</button>
+
+      <button class="key" data-ins="4">4</button>
+      <button class="key" data-ins="5">5</button>
+      <button class="key" data-ins="6">6</button>
+      <button class="key op" data-ins="-">−</button>
+      <button class="key fn" data-ins="sqrt(">√</button>
+
+      <button class="key" data-ins="1">1</button>
+      <button class="key" data-ins="2">2</button>
+      <button class="key" data-ins="3">3</button>
+      <button class="key op" data-ins="+">+</button>
+      <button class="key fn" data-ins="%">%</button>
+
+      <button class="key wide" data-ins="0">0</button>
+      <button class="key" data-ins=".">.</button>
+      <button class="key eq" data-act="evalBasic">=</button>
     </div>
-    <div class="grid">
-        <button class="fn" onclick="inputFn('sin')">sin</button>
-        <button class="fn" onclick="inputFn('cos')">cos</button>
-        <button class="fn" onclick="inputFn('tan')">tan</button>
-        <button class="clear" onclick="clearAll()">AC</button>
+    <div class="hist" id="basicHistory"></div>
+  </div>
 
-        <button class="fn" onclick="inputFn('sqrt')">√</button>
-        <button class="fn" onclick="inputFn('pow')">xʸ</button>
-        <button class="fn" onclick="inputFn('log')">log</button>
-        <button class="op" onclick="deleteLast()">⌫</button>
+  <!-- SCIENTIFIC -->
+  <div class="pane" id="pane-sci">
+    <input type="text" id="sciInput" placeholder="e.g. asin(0.5) + log(100,10) - 5!" autocomplete="off">
+    <div class="keys">
+      <button class="key fn" data-ins-sci="sin(">sin</button>
+      <button class="key fn" data-ins-sci="cos(">cos</button>
+      <button class="key fn" data-ins-sci="tan(">tan</button>
+      <button class="key fn" data-ins-sci="asin(">asin</button>
+      <button class="key fn" data-ins-sci="acos(">acos</button>
 
-        <button class="num" onclick="inputNum('7')">7</button>
-        <button class="num" onclick="inputNum('8')">8</button>
-        <button class="num" onclick="inputNum('9')">9</button>
-        <button class="op" onclick="inputOp('/')">÷</button>
+      <button class="key fn" data-ins-sci="atan(">atan</button>
+      <button class="key fn" data-ins-sci="log(">ln</button>
+      <button class="key fn" data-ins-sci="log10(">log10</button>
+      <button class="key fn" data-ins-sci="exp(">eˣ</button>
+      <button class="key fn" data-ins-sci="!">n!</button>
 
-        <button class="num" onclick="inputNum('4')">4</button>
-        <button class="num" onclick="inputNum('5')">5</button>
-        <button class="num" onclick="inputNum('6')">6</button>
-        <button class="op" onclick="inputOp('*')">×</button>
+      <button class="key fn" data-ins-sci="pi">π</button>
+      <button class="key fn" data-ins-sci="e">e</button>
+      <button class="key fn" data-ins-sci="abs(">|x|</button>
+      <button class="key fn" data-ins-sci="^2">x²</button>
+      <button class="key fn" data-ins-sci="^3">x³</button>
 
-        <button class="num" onclick="inputNum('1')">1</button>
-        <button class="num" onclick="inputNum('2')">2</button>
-        <button class="num" onclick="inputNum('3')">3</button>
-        <button class="op" onclick="inputOp('-')">−</button>
-
-        <button class="num" onclick="inputNum('0')">0</button>
-        <button class="num" onclick="inputNum('.')">.</button>
-        <button class="op" onclick="calculate()">=</button>
-        <button class="op" onclick="inputOp('+')">+</button>
+      <button class="key fn" data-ins-sci="nthRoot(">ⁿ√</button>
+      <button class="key fn" data-ins-sci="combinations(">nCr</button>
+      <button class="key fn" data-ins-sci="permutations(">nPr</button>
+      <button class="key fn" data-ins-sci="mod(">mod</button>
+      <button class="key eq" data-act="evalSci">=</button>
     </div>
+    <div class="note">Full function library available via math.js — gcd, lcm, gamma, hyperbolic trig, complex numbers (2+3i), etc. Just type them.</div>
+  </div>
+
+  <!-- EQUATIONS -->
+  <div class="pane" id="pane-equation">
+    <label>Equation solver</label>
+    <select id="eqType">
+      <option value="linear">Linear — ax + b = 0</option>
+      <option value="quadratic">Quadratic — ax² + bx + c = 0</option>
+      <option value="general">General (numeric root-finder) — f(x) = 0</option>
+    </select>
+
+    <div id="eqLinear">
+      <label>Coefficients</label>
+      <div class="row">
+        <input type="number" id="linA" placeholder="a" value="1">
+        <input type="number" id="linB" placeholder="b" value="0">
+      </div>
+    </div>
+
+    <div id="eqQuadratic" style="display:none">
+      <label>Coefficients</label>
+      <div class="row">
+        <input type="number" id="quadA" placeholder="a" value="1">
+        <input type="number" id="quadB" placeholder="b" value="0">
+        <input type="number" id="quadC" placeholder="c" value="0">
+      </div>
+    </div>
+
+    <div id="eqGeneral" style="display:none">
+      <label>f(x) — solves f(x) = 0 via Newton's method</label>
+      <input type="text" id="genF" placeholder="e.g. x^3 - x - 2" value="x^3 - x - 2">
+      <label>Initial guess x₀</label>
+      <input type="number" id="genGuess" value="1.5">
+    </div>
+
+    <div class="btnrow"><button class="go" id="solveEq">Solve</button></div>
+    <div class="steps" id="eqSteps" style="display:none"></div>
+  </div>
+
+  <!-- CALCULUS -->
+  <div class="pane" id="pane-calculus">
+    <label>Function f(x)</label>
+    <input type="text" id="calcF" placeholder="e.g. x^2 * sin(x)" value="x^2 * sin(x)">
+
+    <label>Operation</label>
+    <select id="calcOp">
+      <option value="derivative">Symbolic derivative d/dx</option>
+      <option value="derivativeAt">Derivative value at x = a</option>
+      <option value="integralDef">Definite integral ∫ from a to b (numeric, Simpson's rule)</option>
+      <option value="limit">Limit as x → a (numeric approach)</option>
+    </select>
+
+    <div class="row" id="calcBounds">
+      <input type="number" id="calcA" placeholder="a" value="0">
+      <input type="number" id="calcB" placeholder="b" value="3.14159">
+    </div>
+
+    <div class="btnrow"><button class="go" id="doCalc">Compute</button></div>
+    <div class="steps" id="calcSteps" style="display:none"></div>
+    <div class="note">Symbolic derivatives use math.js's algebraic engine. Integrals and limits are computed numerically to high precision (Simpson's rule / two-sided epsilon approach) — exact for smooth, well-behaved functions.</div>
+  </div>
+
+  <!-- MATRIX -->
+  <div class="pane" id="pane-matrix">
+    <label>Matrix A (rows separated by ; , values by ,)</label>
+    <input type="text" id="matA" value="1,2;3,4">
+    <label>Matrix B (used for add/subtract/multiply)</label>
+    <input type="text" id="matB" value="5,6;7,8">
+    <label>Operation</label>
+    <select id="matOp">
+      <option value="add">A + B</option>
+      <option value="sub">A − B</option>
+      <option value="mul">A × B</option>
+      <option value="det">det(A)</option>
+      <option value="inv">A⁻¹</option>
+      <option value="transpose">Aᵀ</option>
+    </select>
+    <div class="btnrow"><button class="go" id="doMatrix">Compute</button></div>
+    <div class="steps" id="matSteps" style="display:none"></div>
+  </div>
+
+  <!-- STATS -->
+  <div class="pane" id="pane-stats">
+    <label>Data set (comma separated)</label>
+    <textarea id="statData">4, 8, 15, 16, 23, 42</textarea>
+    <div class="btnrow"><button class="go" id="doStats">Analyze</button></div>
+    <div class="steps" id="statSteps" style="display:none"></div>
+  </div>
+
+  <!-- CONVERT -->
+  <div class="pane" id="pane-convert">
+    <label>Unit conversion (math.js unit syntax)</label>
+    <div class="row">
+      <input type="text" id="convFrom" value="5 km">
+      <input type="text" id="convTo" value="mi">
+    </div>
+    <div class="btnrow"><button class="go" id="doConvert">Convert</button></div>
+    <div class="steps" id="convSteps" style="display:none"></div>
+    <div class="note">Examples: "100 kg" → "lb", "98.6 degF" → "degC", "60 mph" → "m/s", "2 hours" → "minutes".</div>
+  </div>
+
+  <!-- BASE -->
+  <div class="pane" id="pane-base">
+    <label>Number</label>
+    <input type="text" id="baseInput" value="255">
+    <label>From base</label>
+    <select id="baseFrom">
+      <option value="10">Decimal (10)</option>
+      <option value="2">Binary (2)</option>
+      <option value="8">Octal (8)</option>
+      <option value="16">Hexadecimal (16)</option>
+    </select>
+    <div class="btnrow"><button class="go" id="doBase">Convert to all bases</button></div>
+    <div class="steps" id="baseSteps" style="display:none"></div>
+  </div>
+
+  <div class="footline">Everything, in one place.</div>
 </div>
 
 <script>
-    const display = document.getElementById('display');
-    const history = document.getElementById('history');
-    
-    let currentInput = '0';
-    let activeOp = null;
-    let prevValue = null;
-    let resetOnNextKey = false;
+const exprLine = document.getElementById('exprLine');
+const resultLine = document.getElementById('resultLine');
+const modeHint = document.getElementById('modeHint');
+let basicHistoryList = [];
 
-    function updateDisplay() {
-        display.innerText = currentInput;
+function showResult(expr, value, isErr){
+  exprLine.textContent = expr || '\u00A0';
+  resultLine.textContent = value;
+  resultLine.classList.toggle('err', !!isErr);
+}
+
+// ---- Mode dial ----
+document.getElementById('dial').addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  document.querySelectorAll('.dial button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('pane-'+btn.dataset.pane).classList.add('active');
+  modeHint.textContent = btn.textContent;
+});
+
+// ---- Basic pane ----
+const basicInput = document.getElementById('basicInput');
+document.querySelectorAll('#pane-basic .key[data-ins]').forEach(k=>{
+  k.addEventListener('click', ()=>{
+    basicInput.value += k.dataset.ins;
+    basicInput.focus();
+  });
+});
+document.querySelector('[data-act="clear"]').addEventListener('click', ()=>{
+  basicInput.value='';
+  showResult('', '0');
+});
+document.querySelector('[data-act="back"]').addEventListener('click', ()=>{
+  basicInput.value = basicInput.value.slice(0,-1);
+});
+function evalBasic(){
+  const expr = basicInput.value.trim();
+  if(!expr){ return; }
+  try{
+    const val = math.evaluate(expr);
+    const formatted = math.format(val, {precision:14});
+    showResult(expr, formatted);
+    basicHistoryList.unshift(expr + '  =  ' + formatted);
+    basicHistoryList = basicHistoryList.slice(0,8);
+    document.getElementById('basicHistory').innerHTML = basicHistoryList
+      .map(h=>`<div>${h}</div>`).join('');
+  }catch(err){
+    showResult(expr, 'Error: ' + err.message, true);
+  }
+}
+document.querySelector('[data-act="evalBasic"]').addEventListener('click', evalBasic);
+basicInput.addEventListener('keydown', e=>{ if(e.key==='Enter') evalBasic(); });
+document.getElementById('basicHistory').addEventListener('click', e=>{
+  const line = e.target.closest('div');
+  if(line) basicInput.value = line.textContent.split('  =  ')[0];
+});
+
+// ---- Scientific pane ----
+const sciInput = document.getElementById('sciInput');
+document.querySelectorAll('#pane-sci [data-ins-sci]').forEach(k=>{
+  k.addEventListener('click', ()=>{
+    sciInput.value += k.dataset.insSci;
+    sciInput.focus();
+  });
+});
+function evalSci(){
+  const expr = sciInput.value.trim();
+  if(!expr) return;
+  try{
+    const val = math.evaluate(expr);
+    showResult(expr, math.format(val, {precision:14}));
+  }catch(err){
+    showResult(expr, 'Error: ' + err.message, true);
+  }
+}
+document.querySelector('[data-act="evalSci"]').addEventListener('click', evalSci);
+sciInput.addEventListener('keydown', e=>{ if(e.key==='Enter') evalSci(); });
+
+// ---- Equations pane ----
+const eqType = document.getElementById('eqType');
+eqType.addEventListener('change', ()=>{
+  document.getElementById('eqLinear').style.display = eqType.value==='linear' ? 'block':'none';
+  document.getElementById('eqQuadratic').style.display = eqType.value==='quadratic' ? 'block':'none';
+  document.getElementById('eqGeneral').style.display = eqType.value==='general' ? 'block':'none';
+});
+document.getElementById('solveEq').addEventListener('click', ()=>{
+  const out = document.getElementById('eqSteps');
+  out.style.display = 'block';
+  try{
+    if(eqType.value==='linear'){
+      const a = parseFloat(document.getElementById('linA').value);
+      const b = parseFloat(document.getElementById('linB').value);
+      if(a===0){ out.textContent = b===0 ? 'Infinite solutions (0 = 0).' : 'No solution (0 = '+b+').'; return; }
+      const x = -b/a;
+      out.textContent = `${a}x + ${b} = 0\nx = -(${b})/(${a})\nx = ${x}`;
+      showResult(`${a}x + ${b} = 0`, 'x = ' + x);
+    } else if(eqType.value==='quadratic'){
+      const a = parseFloat(document.getElementById('quadA').value);
+      const b = parseFloat(document.getElementById('quadB').value);
+      const c = parseFloat(document.getElementById('quadC').value);
+      if(a===0){ out.textContent='Not quadratic (a=0). Use linear solver.'; return; }
+      const disc = b*b - 4*a*c;
+      let msg = `${a}x² + ${b}x + ${c} = 0\nDiscriminant Δ = b² − 4ac = ${disc}\n`;
+      if(disc > 0){
+        const x1 = (-b + Math.sqrt(disc))/(2*a);
+        const x2 = (-b - Math.sqrt(disc))/(2*a);
+        msg += `Two real roots:\nx₁ = ${x1}\nx₂ = ${x2}`;
+        showResult(`${a}x²+${b}x+${c}=0`, `x₁=${round(x1)}, x₂=${round(x2)}`);
+      } else if(disc === 0){
+        const x1 = -b/(2*a);
+        msg += `One repeated root:\nx = ${x1}`;
+        showResult(`${a}x²+${b}x+${c}=0`, `x = ${round(x1)}`);
+      } else {
+        const re = -b/(2*a);
+        const im = Math.sqrt(-disc)/(2*a);
+        msg += `Two complex roots:\nx₁ = ${re} + ${im}i\nx₂ = ${re} − ${im}i`;
+        showResult(`${a}x²+${b}x+${c}=0`, `x = ${round(re)} ± ${round(im)}i`);
+      }
+      out.textContent = msg;
+    } else {
+      const fstr = document.getElementById('genF').value;
+      let x0 = parseFloat(document.getElementById('genGuess').value);
+      const f = math.parse(fstr).compile();
+      const fprime = math.derivative(fstr, 'x').compile();
+      let steps = `Newton's method on f(x) = ${fstr}\nf'(x) = ${math.derivative(fstr,'x').toString()}\n\n`;
+      let x = x0, converged=false;
+      for(let i=0;i<50;i++){
+        const fx = f.evaluate({x});
+        const fpx = fprime.evaluate({x});
+        if(Math.abs(fpx) < 1e-12){ steps += 'Derivative near zero — stopping.\n'; break; }
+        const xNext = x - fx/fpx;
+        steps += `x${i} = ${x.toFixed(8)}   f(x${i}) = ${fx.toFixed(8)}\n`;
+        if(Math.abs(xNext - x) < 1e-10){ x = xNext; converged=true; steps += `x${i+1} = ${x.toFixed(8)}  → converged\n`; break; }
+        x = xNext;
+      }
+      steps += converged ? `\nRoot ≈ ${x}` : `\nStopped after 50 iterations. Best estimate: ${x}`;
+      out.textContent = steps;
+      showResult(fstr + ' = 0', 'x ≈ ' + round(x));
     }
+  }catch(err){
+    out.textContent = 'Error: ' + err.message;
+  }
+});
+function round(n){ return Math.round(n*1e8)/1e8; }
 
-    function inputNum(num) {
-        if (currentInput === '0' || resetOnNextKey) {
-            currentInput = num;
-            resetOnNextKey = false;
-        } else {
-            if (num === '.' && currentInput.includes('.')) return;
-            currentInput += num;
-        }
-        updateDisplay();
+// ---- Calculus pane ----
+document.getElementById('calcOp').addEventListener('change', function(){
+  document.getElementById('calcBounds').style.display =
+    (this.value === 'derivative') ? 'none' : 'flex';
+});
+document.getElementById('doCalc').addEventListener('click', ()=>{
+  const out = document.getElementById('calcSteps');
+  out.style.display='block';
+  const fstr = document.getElementById('calcF').value;
+  const op = document.getElementById('calcOp').value;
+  const a = parseFloat(document.getElementById('calcA').value);
+  const b = parseFloat(document.getElementById('calcB').value);
+  try{
+    if(op==='derivative'){
+      const d = math.derivative(fstr, 'x');
+      out.textContent = `f(x) = ${fstr}\nf'(x) = ${d.toString()}\nSimplified: ${math.simplify(d.toString()).toString()}`;
+      showResult(`d/dx [${fstr}]`, math.simplify(d.toString()).toString());
+    } else if(op==='derivativeAt'){
+      const d = math.derivative(fstr,'x').compile();
+      const val = d.evaluate({x:a});
+      out.textContent = `f'(x) = ${math.derivative(fstr,'x').toString()}\nf'(${a}) = ${val}`;
+      showResult(`f'(${a}) where f=${fstr}`, val);
+    } else if(op==='integralDef'){
+      const f = math.parse(fstr).compile();
+      const n = 2000; // even number of intervals for Simpson's rule
+      const h = (b-a)/n;
+      let sum = f.evaluate({x:a}) + f.evaluate({x:b});
+      for(let i=1;i<n;i++){
+        const x = a + i*h;
+        sum += f.evaluate({x}) * (i%2===0 ? 2 : 4);
+      }
+      const integral = sum * h/3;
+      out.textContent = `∫ from ${a} to ${b} of (${fstr}) dx\nComputed via Simpson's rule, n=${n} intervals\nResult ≈ ${integral}`;
+      showResult(`∫[${a},${b}] ${fstr} dx`, round(integral));
+    } else if(op==='limit'){
+      const f = math.parse(fstr).compile();
+      const eps = 1e-6;
+      const left = f.evaluate({x:a-eps});
+      const right = f.evaluate({x:a+eps});
+      const approx = (left+right)/2;
+      out.textContent = `lim x→${a} of (${fstr})\nApproach from left (x=${a-eps}): ${left}\nApproach from right (x=${a+eps}): ${right}\nEstimate: ${approx}${Math.abs(left-right)>1e-3 ? '\n\n⚠ Left/right values diverge — limit may not exist or function is discontinuous here.' : ''}`;
+      showResult(`lim x→${a} ${fstr}`, round(approx));
     }
+  }catch(err){
+    out.textContent = 'Error: ' + err.message;
+  }
+});
 
-    function inputOp(op) {
-        prevValue = parseFloat(currentInput);
-        activeOp = op;
-        history.innerText = `${prevValue} ${op === '*' ? '×' : op === '/' ? '÷' : op}`;
-        resetOnNextKey = true;
+// ---- Matrix pane ----
+function parseMatrix(str){
+  return str.split(';').map(row => row.split(',').map(n=>parseFloat(n.trim())));
+}
+document.getElementById('doMatrix').addEventListener('click', ()=>{
+  const out = document.getElementById('matSteps');
+  out.style.display='block';
+  try{
+    const A = math.matrix(parseMatrix(document.getElementById('matA').value));
+    const op = document.getElementById('matOp').value;
+    let result;
+    if(op==='det'){
+      result = math.det(A);
+      out.textContent = `det(A) = ${result}`;
+    } else if(op==='inv'){
+      result = math.inv(A);
+      out.textContent = `A⁻¹ =\n${math.format(result,{precision:8})}`;
+    } else if(op==='transpose'){
+      result = math.transpose(A);
+      out.textContent = `Aᵀ =\n${math.format(result,{precision:8})}`;
+    } else {
+      const B = math.matrix(parseMatrix(document.getElementById('matB').value));
+      if(op==='add') result = math.add(A,B);
+      if(op==='sub') result = math.subtract(A,B);
+      if(op==='mul') result = math.multiply(A,B);
+      out.textContent = `Result =\n${math.format(result,{precision:8})}`;
     }
+    showResult('Matrix ' + op, math.format(result,{precision:6}));
+  }catch(err){
+    out.textContent = 'Error: ' + err.message + '\n(Check dimensions and formatting: rows separated by ";", values by ",")';
+  }
+});
 
-    function inputFn(fn) {
-        let val = parseFloat(currentInput);
-        let result = 0;
-        
-        switch(fn) {
-            case 'sin': result = Math.sin(val * Math.PI / 180); break;
-            case 'cos': result = Math.cos(val * Math.PI / 180); break;
-            case 'tan': result = Math.tan(val * Math.PI / 180); break;
-            case 'sqrt': result = Math.sqrt(val); break;
-            case 'log': result = Math.log10(val); break;
-            case 'pow': 
-                prevValue = val;
-                activeOp = '^';
-                history.innerText = `${prevValue} ^`;
-                resetOnNextKey = true;
-                return;
-        }
-        
-        history.innerText = `${fn}(${val})`;
-        currentInput = Number(result.toFixed(8)).toString();
-        resetOnNextKey = true;
-        updateDisplay();
-    }
+// ---- Stats pane ----
+document.getElementById('doStats').addEventListener('click', ()=>{
+  const out = document.getElementById('statSteps');
+  out.style.display='block';
+  try{
+    const data = document.getElementById('statData').value.split(',').map(n=>parseFloat(n.trim())).filter(n=>!isNaN(n));
+    if(data.length===0){ out.textContent = 'Enter at least one number.'; return; }
+    const mean = math.mean(data);
+    const median = math.median(data);
+    const std = data.length>1 ? math.std(data) : 0;
+    const variance = data.length>1 ? math.variance(data) : 0;
+    const min = math.min(data), max = math.max(data);
+    const sum = math.sum(data);
+    let modeArr;
+    try{ modeArr = math.mode(data); }catch(e){ modeArr = ['n/a']; }
+    out.textContent =
+`n         = ${data.length}
+sum       = ${sum}
+mean      = ${mean}
+median    = ${median}
+mode      = ${modeArr.join(', ')}
+min / max = ${min} / ${max}
+range     = ${max-min}
+variance  = ${variance}
+std dev   = ${std}`;
+    showResult('stats(n=' + data.length + ')', 'mean=' + round(mean) + ', σ=' + round(std));
+  }catch(err){
+    out.textContent = 'Error: ' + err.message;
+  }
+});
 
-    function calculate() {
-        if (!activeOp || prevValue === null) return;
-        let current = parseFloat(currentInput);
-        let result = 0;
+// ---- Convert pane ----
+document.getElementById('doConvert').addEventListener('click', ()=>{
+  const out = document.getElementById('convSteps');
+  out.style.display='block';
+  try{
+    const from = document.getElementById('convFrom').value;
+    const toUnit = document.getElementById('convTo').value.trim();
+    const u = math.unit(from);
+    const converted = u.to(toUnit);
+    out.textContent = `${from}  =  ${converted.toString()}`;
+    showResult(from + ' → ' + toUnit, converted.toString());
+  }catch(err){
+    out.textContent = 'Error: ' + err.message + '\n(Use math.js unit syntax, e.g. "5 km", "98.6 degF")';
+  }
+});
 
-        switch(activeOp) {
-            case '+': result = prevValue + current; break;
-            case '-': result = prevValue - current; break;
-            case '*': result = prevValue * current; break;
-            case '/': result = current !== 0 ? prevValue / current : 'Chyba'; break;
-            case '^': result = Math.pow(prevValue, current); break;
-        }
-
-        history.innerText += ` ${current} =`;
-        currentInput = Number(result.toFixed(8)).toString();
-        activeOp = null;
-        prevValue = null;
-        resetOnNextKey = true;
-        updateDisplay();
-    }
-
-    function clearAll() {
-        currentInput = '0';
-        activeOp = null;
-        prevValue = null;
-        history.innerText = '';
-        updateDisplay();
-    }
-
-    function deleteLast() {
-        if (currentInput.length > 1) {
-            currentInput = currentInput.slice(0, -1);
-        } else {
-            currentInput = '0';
-        }
-        updateDisplay();
-    }
+// ---- Base pane ----
+document.getElementById('doBase').addEventListener('click', ()=>{
+  const out = document.getElementById('baseSteps');
+  out.style.display='block';
+  try{
+    const raw = document.getElementById('baseInput').value.trim();
+    const fromBase = parseInt(document.getElementById('baseFrom').value);
+    const decimal = parseInt(raw, fromBase);
+    if(isNaN(decimal)){ out.textContent = 'Invalid number for that base.'; return; }
+    out.textContent =
+`Decimal     = ${decimal.toString(10)}
+Binary      = ${decimal.toString(2)}
+Octal       = ${decimal.toString(8)}
+Hexadecimal = ${decimal.toString(16).toUpperCase()}`;
+    showResult(raw + ' (base ' + fromBase + ')', decimal.toString(2) + ' (bin)');
+  }catch(err){
+    out.textContent = 'Error: ' + err.message;
+  }
+});
 </script>
-
 </body>
 </html>
